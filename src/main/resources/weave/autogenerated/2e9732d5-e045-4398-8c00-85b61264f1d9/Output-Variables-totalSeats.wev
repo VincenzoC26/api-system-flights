@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_2e9732d5_e045_4398_8c00_85b61264f1d9_Output_Variables_totalSeats = Number
+

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="getTotalPrice" doc:id="f4d2a122-e225-47ae-a7d3-a7293a314394" >
+		<ee:transform doc:name="destination, output" doc:id="f0b28005-23d3-48a5-b0e9-bfadb11c6966" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="destination" ><![CDATA[%dw 2.0
+output application/json
+---
+message.attributes.queryParams.destination]]></ee:set-variable>
+				<ee:set-variable variableName="output" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="getFlights" doc:id="b84cfa64-eec2-424d-860b-195be8989557" name="getFlights"/>
+		<foreach doc:name="For Each" doc:id="59e941ee-bc95-444b-8148-104e999328de" >
+			<ee:transform doc:name="price, totalSeats, emptySeats, types" doc:id="7ca894ca-e17c-4e18-8d42-3c8124fd1946" >
+				<ee:message >
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="price" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.price as Number]]></ee:set-variable>
+					<ee:set-variable variableName="totalSeats" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.plane.totalSeats as Number]]></ee:set-variable>
+					<ee:set-variable variableName="emptySeats" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.emptySeats as Number]]></ee:set-variable>
+					<ee:set-variable variableName="types" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.plane.'type' as String]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<flow-ref doc:name="postSubtraction" doc:id="9c37c766-76be-4329-bd1b-008790ebfc1a" name="postSubtraction"/>
+			<flow-ref doc:name="postMultiply" doc:id="ac737a1d-eed4-463d-b23d-c678d110b295" name="postMultiply"/>
+			<set-variable value="#[(vars.'output' default []) &lt;&lt; {&#10;	&quot;types&quot;: vars.types as String,&#10;	&quot;totalPrice&quot;: payload.result as Number&#10;}]" doc:name="output" doc:id="9fd1de4c-30f5-4d71-a8fc-a45713eeea23" variableName="output"/>
+		</foreach>
+		<ee:transform doc:name="final output" doc:id="f3033059-a117-4b04-ae83-1530dfbda574" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"destination": vars.destination,
+	 "planes": vars.'output' groupBy $.'types' 
+	 pluck {
+	 	"type": ($$),
+	 	"pricePerSeat": sum($.totalPrice) as String ++ "\$"
+     } orderBy($.'type') 
+	 
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="getFlights" doc:id="fcf2b81c-cc6b-4b52-99dc-ce20a2f475dc" >
+		<http:request method="GET" doc:name="GET /flights" doc:id="f0216e49-ae7f-48ae-8d79-7e72eae1fc14" config-ref="HTTP_Request_configuration" path="api/flights">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"destination" : vars.destination
+}]]]></http:query-params>
+		</http:request>
+	</flow>
+	<flow name="postSubtraction" doc:id="2e9732d5-e045-4398-8c00-85b61264f1d9" >
+		<http:request method="POST" doc:name="POST /subtraction" doc:id="6a7110f5-15d7-4565-91d5-650e4e1924c2" config-ref="HTTP_Request_configuration1" path="api/subtraction">
+			<http:body ><![CDATA[#[output application/json
+---
+{
+	"int1": vars.totalSeats,
+	"int2": vars.emptySeats
+}]]]></http:body>
+		</http:request>
+	</flow>
+	<flow name="postMultiply" doc:id="bae60445-1fe8-4ffc-a903-ef8f4df126e0" >
+		<http:request method="POST" doc:name="POST /multiply" doc:id="edb5420b-6468-4abb-9c7d-025bcc704051" config-ref="HTTP_Request_configuration1" path="api/multiply">
+			<http:body ><![CDATA[#[output application/json
+---
+{
+	"int1": payload.result as Number,
+	"int2": vars.price
+}]]]></http:body>
+		</http:request>
+	</flow>
+</mule>
