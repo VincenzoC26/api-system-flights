@@ -1,0 +1,14 @@
+http:
+  port: "8081"
+  
+flights:
+  host: "api-system-flights.us-e2.cloudhub.io"
+  port: "80"
+  basePath: "/"
+  path: "api/flights"
+  
+operation:
+  host: "api-system-operations.us-e2.cloudhub.io"
+  port: "80"
+  basePath: "/"
+  path: "api"
